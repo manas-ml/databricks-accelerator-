@@ -1,0 +1,9 @@
+targets:
+  uat:
+    mode: staging
+    variables:
+      workspace_host: ""          # Set via DATABRICKS_HOST env var or fill in
+      catalog: accel_uat
+      environment: uat
+      project: accel
+      alert_email: ""

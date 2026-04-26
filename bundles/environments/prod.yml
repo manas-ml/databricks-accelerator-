@@ -1,0 +1,11 @@
+targets:
+  prod:
+    mode: production
+    run_as:
+      service_principal_name: etl_sp_prod
+    variables:
+      workspace_host: ""          # Set via DATABRICKS_HOST env var or fill in
+      catalog: accel_prod
+      environment: prod
+      project: accel
+      alert_email: ""

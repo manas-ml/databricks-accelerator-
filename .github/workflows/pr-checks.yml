@@ -1,0 +1,91 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-lint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: Run TFLint on modules
+        run: |
+          for dir in terraform/modules/*/; do
+            echo "==> Linting $dir"
+            tflint --chdir="$dir" --format=compact
+          done
+
+  security-scan:
+    name: Checkov Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+          download_external_modules: false
+
+  cost-estimate:
+    name: Infracost Estimate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost diff
+        run: |
+          infracost diff \
+            --path terraform/environments/dev \
+            --format json \
+            --out-file infracost.json
+        env:
+          TF_VAR_databricks_account_id: "placeholder"
+          TF_VAR_databricks_client_id: "placeholder"
+          TF_VAR_databricks_client_secret: "placeholder"
+        continue-on-error: true
+
+      - name: Post cost estimate comment
+        uses: infracost/actions/comment@v3
+        with:
+          path: infracost.json
+          behavior: update
+        continue-on-error: true
+
+  python-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check src/ --select E,F,W --ignore E501

@@ -1,0 +1,53 @@
+resources:
+  jobs:
+    gold_aggregate_job:
+      name: "${var.project}-${var.environment}-gold-aggregate"
+      description: "Silver → Gold daily aggregations"
+
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+
+      tags:
+        project: ${var.project}
+        environment: ${var.environment}
+        layer: gold
+
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+
+      job_clusters:
+        - job_cluster_key: etl_cluster
+          new_cluster:
+            num_workers: 2
+            spark_version: "15.4.x-scala2.12"
+            aws_attributes:
+              availability: SPOT_WITH_FALLBACK
+
+      tasks:
+        - task_key: daily_event_summary
+          job_cluster_key: etl_cluster
+          notebook_task:
+            notebook_path: ../src/gold/aggregate
+            base_parameters:
+              catalog: ${var.catalog}
+              silver_schema: silver
+              gold_schema: gold
+              source_table: enriched_events
+              target_table: daily_event_summary
+              agg_date_col: event_date
+              environment: ${var.environment}
+
+        - task_key: optimize_gold
+          job_cluster_key: etl_cluster
+          depends_on:
+            - task_key: daily_event_summary
+          notebook_task:
+            notebook_path: ../src/shared/optimize_and_vacuum
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: gold
+              retain_hours: "168"
+              environment: ${var.environment}

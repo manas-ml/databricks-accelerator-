@@ -1,0 +1,9 @@
+targets:
+  dev:
+    mode: development
+    variables:
+      workspace_host: ""          # Set via DATABRICKS_HOST env var or fill in
+      catalog: accel_dev
+      environment: dev
+      project: accel
+      alert_email: ""

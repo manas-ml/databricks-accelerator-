@@ -1,0 +1,25 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars — it is gitignored.
+
+project     = "accel"
+environment = "prod"
+aws_region  = "us-east-1"
+
+availability_zones   = ["us-east-1a", "us-east-1b"]
+vpc_cidr             = "10.2.0.0/16"
+public_subnet_cidrs  = ["10.2.0.0/24", "10.2.1.0/24"]
+private_subnet_cidrs = ["10.2.16.0/20", "10.2.32.0/20"]
+
+databricks_account_id    = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+databricks_client_id     = "REPLACE_WITH_SP_CLIENT_ID"
+databricks_client_secret = "REPLACE_WITH_SP_CLIENT_SECRET"
+
+# prod reuses the metastore created for dev (one metastore per AWS region)
+create_metastore      = false
+existing_metastore_id = "REPLACE_WITH_DEV_METASTORE_ID"
+
+alert_emails     = ["platform-oncall@example.com"]
+aws_secret_names = []
+
+# Recommended: use KMS-managed keys in prod
+kms_key_arn = ""

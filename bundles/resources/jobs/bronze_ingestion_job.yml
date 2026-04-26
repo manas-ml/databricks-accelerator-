@@ -1,0 +1,53 @@
+resources:
+  jobs:
+    bronze_ingestion_job:
+      name: "${var.project}-${var.environment}-bronze-ingestion"
+      description: "Auto Loader ingestion from S3 landing zone to Bronze Delta tables"
+
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        no_alert_for_skipped_runs: false
+
+      tags:
+        project: ${var.project}
+        environment: ${var.environment}
+        layer: bronze
+
+      job_clusters:
+        - job_cluster_key: etl_cluster
+          new_cluster:
+            num_workers: 2
+            spark_version: "15.4.x-scala2.12"
+            aws_attributes:
+              availability: SPOT_WITH_FALLBACK
+            spark_conf:
+              spark.databricks.delta.optimizeWrite.enabled: "true"
+              spark.databricks.delta.autoCompact.enabled: "true"
+
+      tasks:
+        - task_key: bronze_events
+          job_cluster_key: etl_cluster
+          notebook_task:
+            notebook_path: ../src/bronze/autoloader_ingestion
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: bronze
+              source_path: "s3://${var.project}-bronze-${var.environment}/landing/events/"
+              source_format: json
+              target_table: raw_events
+              checkpoint_path: "s3://${var.project}-checkpoints-${var.environment}/bronze/events"
+              environment: ${var.environment}
+
+        - task_key: bronze_customers
+          job_cluster_key: etl_cluster
+          notebook_task:
+            notebook_path: ../src/bronze/autoloader_ingestion
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: bronze
+              source_path: "s3://${var.project}-bronze-${var.environment}/landing/customers/"
+              source_format: json
+              target_table: raw_customers
+              checkpoint_path: "s3://${var.project}-checkpoints-${var.environment}/bronze/customers"
+              environment: ${var.environment}

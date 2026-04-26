@@ -1,0 +1,66 @@
+name: Deploy Databricks Bundles
+
+on:
+  workflow_run:
+    workflows: ["Terraform Apply"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, uat, prod]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DATABRICKS_CLI_VERSION: "0.221.0"
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.event.inputs.environment || 'dev' }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks --version
+
+      - name: Validate bundle
+        working-directory: bundles
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          databricks bundle validate --target "$ENV"
+
+      - name: Deploy bundle
+        working-directory: bundles
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          databricks bundle deploy --target "$ENV"
+
+      - name: Run smoke test (dev only)
+        if: ${{ (github.event.inputs.environment || 'dev') == 'dev' }}
+        working-directory: bundles
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: |
+          databricks bundle run bronze_ingestion_job --target dev --no-wait

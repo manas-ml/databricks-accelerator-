@@ -1,0 +1,45 @@
+bundle:
+  name: databricks-accelerator
+
+workspace:
+  root_path: /Shared/${bundle.name}
+
+include:
+  - resources/jobs/*.yml
+  - resources/pipelines/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${var.workspace_host}
+
+  uat:
+    mode: staging
+    workspace:
+      host: ${var.workspace_host}
+
+  prod:
+    mode: production
+    workspace:
+      host: ${var.workspace_host}
+    run_as:
+      service_principal_name: etl_sp_prod
+
+variables:
+  workspace_host:
+    description: Databricks workspace URL for the target environment
+    default: ""
+  catalog:
+    description: Unity Catalog catalog name
+    default: "accel_dev"
+  environment:
+    description: Environment name
+    default: "dev"
+  project:
+    description: Project name prefix
+    default: "accel"
+  alert_email:
+    description: Email for job failure notifications
+    default: ""

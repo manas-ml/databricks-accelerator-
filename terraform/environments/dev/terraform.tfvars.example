@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars — it is gitignored.
+
+project    = "accel"
+environment = "dev"
+aws_region = "us-east-1"
+
+availability_zones   = ["us-east-1a", "us-east-1b"]
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.0.0/24", "10.0.1.0/24"]
+private_subnet_cidrs = ["10.0.16.0/20", "10.0.32.0/20"]
+
+# Databricks credentials — use environment variables in CI:
+# TF_VAR_databricks_account_id, TF_VAR_databricks_client_id, TF_VAR_databricks_client_secret
+databricks_account_id    = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+databricks_client_id     = "REPLACE_WITH_SP_CLIENT_ID"
+databricks_client_secret = "REPLACE_WITH_SP_CLIENT_SECRET"
+
+# Set to false and provide existing_metastore_id if you already have a metastore in this region
+create_metastore      = true
+existing_metastore_id = ""
+
+alert_emails     = ["your-team@example.com"]
+aws_secret_names = []
+
+# Optional: KMS key ARN for SSE-KMS on S3 buckets (leave empty for SSE-S3)
+kms_key_arn = ""

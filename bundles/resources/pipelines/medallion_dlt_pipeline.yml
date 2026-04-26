@@ -1,0 +1,37 @@
+resources:
+  pipelines:
+    medallion_dlt_pipeline:
+      name: "${var.project}-${var.environment}-medallion-dlt"
+      catalog: ${var.catalog}
+      target: "${var.catalog}.dlt_output"
+      development: false
+
+      configuration:
+        catalog: ${var.catalog}
+        bronze_schema: bronze
+        silver_schema: silver
+        gold_schema: gold
+        environment: ${var.environment}
+        bronze_source: "s3://${var.project}-bronze-${var.environment}/landing"
+        checkpoint_path: "s3://${var.project}-checkpoints-${var.environment}/dlt"
+
+      libraries:
+        - notebook:
+            path: ../src/dlt/pipeline_bronze
+        - notebook:
+            path: ../src/dlt/pipeline_silver
+        - notebook:
+            path: ../src/dlt/pipeline_gold
+
+      clusters:
+        - label: default
+          num_workers: 2
+          aws_attributes:
+            availability: SPOT_WITH_FALLBACK
+
+      notifications:
+        - email_recipients:
+            - ${var.alert_email}
+          alerts:
+            - on-update-failure
+            - on-flow-failure

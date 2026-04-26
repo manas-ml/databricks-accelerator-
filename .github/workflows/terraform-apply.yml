@@ -1,0 +1,110 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.9.0"
+
+jobs:
+  apply-dev:
+    name: Apply dev (auto)
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init -reconfigure
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        env:
+          TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+          TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: terraform apply -auto-approve
+
+  apply-uat:
+    name: Apply uat (requires approval)
+    needs: apply-dev
+    runs-on: ubuntu-latest
+    environment: uat    # GitHub Environment with required reviewers configured
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/uat
+        run: terraform init -reconfigure
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/uat
+        env:
+          TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+          TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: terraform apply -auto-approve
+
+  apply-prod:
+    name: Apply prod (requires 2 approvals)
+    needs: apply-uat
+    runs-on: ubuntu-latest
+    environment: prod   # GitHub Environment with 2 required reviewers + deployment protection rules
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN_PROD }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/prod
+        run: terraform init -reconfigure
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/prod
+        env:
+          TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+          TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: terraform apply -auto-approve
